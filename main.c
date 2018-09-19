@@ -13,7 +13,7 @@ static const char *dri_path = "/dev/dri/card0";
 static const char *v4l2_path = "/dev/video0";
 static struct buffer buffers[BUFCOUNT];
 static struct buffer *front_buffer, *back_buffer;
-static int debug;
+static int debug = 1;
 
 #define error(fmt, arg...)		\
 do {					\
@@ -84,8 +84,7 @@ static void handle_new_buffer(int v4l2_fd, int drm_fd, struct drm_dev_t *dev)
 	 * This is a non-blocking, schedule operation.
 	 */
 	if (!back_buffer) {
-		drmModePageFlip(drm_fd, dev->crtc_id, buf->fb_id,
-			DRM_MODE_PAGE_FLIP_EVENT, dev);
+		drm_render_atomic(drm_fd, buf->fb_id, dev);
 		back_buffer = buf; 
 		buf->owner = DRM_OWNED;
 	} else {
@@ -150,7 +149,7 @@ int main()
 	int i;
 
 	drm_fd = drm_open(dri_path, 1, 1);
-	dev_head = drm_find_dev(drm_fd);
+	dev_head = drm_init(drm_fd);
 
 	if (dev_head == NULL) {
 		error("available drm_dev not found\n");
@@ -182,7 +181,7 @@ int main()
 	 * It's easily fixable, by adding some modesetting code
 	 * in the DRM side.
 	 */
-	v4l2_fd = v4l2_open(v4l2_path, O_RDWR);
+	v4l2_fd = v4l2_open(v4l2_path, O_RDWR | O_NONBLOCK);
 	v4l2_set_fmt(v4l2_fd, 640, 480, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_PIX_FMT_BGR32);
 	v4l2_init_dmabuf(v4l2_fd, BUFCOUNT, V4L2_BUF_TYPE_VIDEO_CAPTURE, buffers);
 
